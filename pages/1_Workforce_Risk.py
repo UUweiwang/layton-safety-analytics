@@ -328,15 +328,26 @@ priority_cols = [
     "JOB_ID", "OVERTIME_RATE", "AVG_HEADCOUNT", "TOTAL_HOURS",
     "RECORDABLE_INCIDENTS", "INCIDENT_RATE"
 ]
+priority_display = priority[priority_cols].rename(columns={
+    "JOB_ID": "Project ID",
+    "OVERTIME_RATE": "Overtime (%)",
+    "AVG_HEADCOUNT": "Avg. Headcount",
+    "TOTAL_HOURS": "Work Hours",
+    "RECORDABLE_INCIDENTS": "Recordable Incidents",
+    "INCIDENT_RATE": "Incidents / 200k Hours"
+})
+
+priority_display["Work Hours"] = priority_display["Work Hours"].map(lambda x: f"{x:,.0f}")
+
 st.dataframe(
-    priority[priority_cols].rename(columns={
-        "JOB_ID": "Project ID",
-        "OVERTIME_RATE": "Overtime (%)",
-        "AVG_HEADCOUNT": "Avg. Headcount",
-        "TOTAL_HOURS": "Work Hours",
-        "RECORDABLE_INCIDENTS": "Recordable Incidents",
-        "INCIDENT_RATE": "Incidents / 200k Hours"
-    }),
+    priority_display,
+    column_config={
+        "Overtime (%)": st.column_config.NumberColumn(format="%.2f"),
+        "Avg. Headcount": st.column_config.NumberColumn(format="%.1f"),
+        "Work Hours": st.column_config.TextColumn(),
+        "Recordable Incidents": st.column_config.NumberColumn(format="%d"),
+        "Incidents / 200k Hours": st.column_config.NumberColumn(format="%.2f"),
+    },
     use_container_width=True,
     hide_index=True
 )
