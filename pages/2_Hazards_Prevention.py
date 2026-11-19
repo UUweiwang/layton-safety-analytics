@@ -195,6 +195,19 @@ fig3 = px.bar(
     title="Completed vs Open Good Catch Follow-ups"
 )
 
+fig3.update_traces(
+    marker_color="#16A34A",
+    selector={"name": "COMPLETED_FOLLOWUPS"}
+)
+fig3.update_traces(
+    marker_color="#F59E0B",
+    selector={"name": "OPEN_FOLLOWUPS"}
+)
+fig3.for_each_trace(lambda trace: trace.update(
+    name={"COMPLETED_FOLLOWUPS": "Completed", "OPEN_FOLLOWUPS": "Open"}.get(trace.name, trace.name),
+    legendgroup={"COMPLETED_FOLLOWUPS": "Completed", "OPEN_FOLLOWUPS": "Open"}.get(trace.name, trace.name)
+))
+
 style_chart(fig3, height=420)
 
 st.plotly_chart(fig3, use_container_width=True)
@@ -203,6 +216,18 @@ st.caption(
     "Follow-up status covers all projects and does "
     "not change with the project filter."
 )
+
+critical_open = followup.loc[
+    followup["POTENTIAL_SEVERITY"].astype(str).str.lower() == "critical",
+    "OPEN_FOLLOWUPS"
+].sum()
+if critical_open > 0:
+    st.warning(
+        f"Management attention: {critical_open:,.0f} Critical-severity Good Catch "
+        "follow-ups remain open across all projects. Confirm ownership, "
+        "corrective-action status, and closure evidence. An open follow-up "
+        "does not necessarily mean the hazard remains uncontrolled."
+    )
 
 
 # New: active projects to prioritize for corrective action
