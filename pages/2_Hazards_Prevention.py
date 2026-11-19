@@ -57,6 +57,8 @@ def load_csv(filename):
 project = load_csv("member3_project_kpis.csv")
 hazard = load_csv("issue_hazard_summary.csv")
 followup = load_csv("good_catch_followup_by_severity.csv")
+active_priority = load_csv("active_project_management_priority.csv")
+project_types = load_csv("project_type_executive_summary.csv")
 
 
 # Page header
@@ -138,10 +140,8 @@ fig1 = px.bar(
     title="Top 10 Projects with Unresolved Safety Issues"
 )
 
-fig1.update_layout(
-    height=480,
-    coloraxis_showscale=False
-)
+fig1.update_layout(coloraxis_showscale=False)
+style_chart(fig1, height=480)
 
 st.plotly_chart(fig1, use_container_width=True)
 
@@ -168,10 +168,8 @@ fig2 = px.bar(
     title="Safety Issues by Hazard Category"
 )
 
-fig2.update_layout(
-    height=480,
-    coloraxis_showscale=False
-)
+fig2.update_layout(coloraxis_showscale=False)
+style_chart(fig2, height=480)
 
 st.plotly_chart(fig2, use_container_width=True)
 
@@ -197,7 +195,7 @@ fig3 = px.bar(
     title="Completed vs Open Good Catch Follow-ups"
 )
 
-fig3.update_layout(height=420)
+style_chart(fig3, height=420)
 
 st.plotly_chart(fig3, use_container_width=True)
 
@@ -206,6 +204,42 @@ st.caption(
     "not change with the project filter."
 )
 
+
+# New: active projects to prioritize for corrective action
+st.subheader("Active Project Priorities")
+st.caption("Active projects only. Ranked by the number of unresolved High/Critical issues; this is a prioritization view, not a predicted risk score.")
+active_view = active_priority[active_priority["JOB_ID"].isin(selected_projects)].copy()
+if not active_view.empty:
+    top_active = active_view.nlargest(10, "HIGH_CRITICAL_UNRESOLVED").sort_values("HIGH_CRITICAL_UNRESOLVED")
+    fig4 = px.bar(
+        top_active,
+        x="HIGH_CRITICAL_UNRESOLVED", y="JOB_NAME", orientation="h",
+        color="HIGH_CRITICAL_UNRESOLVED", color_continuous_scale="OrRd",
+        labels={"HIGH_CRITICAL_UNRESOLVED": "Open High/Critical Issues", "JOB_NAME": "Active Project"},
+        title="Active Projects with the Most Unresolved High/Critical Issues"
+    )
+    fig4.update_layout(coloraxis_showscale=False)
+    style_chart(fig4, height=470)
+    st.plotly_chart(fig4, use_container_width=True)
+    st.info("Management action: assign accountable owners and verify closure of high-severity issues on priority projects.")
+else:
+    st.info("No active projects in the current selection.")
+
+# New: comparison across project types (portfolio-wide summary)
+st.subheader("Safety Performance by Project Type")
+st.caption("Portfolio-wide comparison; this chart does not respond to the project selector above.")
+fig5 = px.bar(
+    project_types.sort_values("SAFETY_INCIDENT_RATE", ascending=False),
+    x="PROJECT_TYPE", y="SAFETY_INCIDENT_RATE",
+    color="SAFETY_INCIDENT_RATE", color_continuous_scale="Blues",
+    hover_data=["PROJECT_COUNT", "LTA_RATE", "TOP_SEVERE_HAZARD"],
+    labels={"PROJECT_TYPE": "Project Type", "SAFETY_INCIDENT_RATE": "Safety Incident Rate"},
+    title="Safety Incident Rate Across Project Types"
+)
+fig5.update_layout(coloraxis_showscale=False)
+style_chart(fig5, height=430)
+st.plotly_chart(fig5, use_container_width=True)
+st.caption("Compare rates rather than raw incident counts; differences are descriptive and do not establish causation.")
 
 # Management interpretation
 st.subheader("Key Findings & Recommendations")
@@ -226,6 +260,10 @@ st.markdown(
 
     Monitor open follow-ups and improve closure processes
     so that reported hazards receive timely attention.
+
+    **4. Project-Specific Prevention**
+
+    Tailor prevention programs to the hazard profiles and safety rates of different project types.
 
     **Management Recommendation**
 
