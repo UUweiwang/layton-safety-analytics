@@ -2,368 +2,174 @@ from pathlib import Path
 
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 import streamlit as st
 
-
-def style_chart(fig, height=450):
-    fig.update_layout(
-        height=height,
-        paper_bgcolor="white",
-        plot_bgcolor="white",
-        font={
-            "family": "Arial",
-            "size": 15,
-            "color": "#1F2937"
-        },
-        title_font={
-            "size": 19,
-            "color": "#111827"
-        },
-        xaxis={
-            "tickfont": {"size": 14, "color": "#1F2937"},
-            "title_font": {"size": 15, "color": "#1F2937"},
-            "gridcolor": "#E2E8F0"
-        },
-        yaxis={
-            "tickfont": {"size": 14, "color": "#1F2937"},
-            "title_font": {"size": 15, "color": "#1F2937"},
-            "gridcolor": "#E2E8F0"
-        },
-        legend={"font": {"size": 14}},
-        margin={"l": 30, "r": 30, "t": 70, "b": 40}
-    )
-    return fig
-st.set_page_config(
-    page_title="Hazards & Prevention",
-    layout="wide"
-)
-
+st.set_page_config(page_title="Hazards & Prevention", layout="wide")
 BASE_DIR = Path(__file__).resolve().parent.parent
-FIGURE_DIR = BASE_DIR / "assets" / "jenny"
 DATA_DIR = BASE_DIR / "data" / "teammates" / "jenny"
 
+NAVY = "#17324D"
+BLUE = "#38B6DE"
+ORANGE = "#F59A54"
+GREEN = "#16A34A"
+GRID = "#E2E8F0"
 
-# Find CSV files, including nested folders
+st.markdown("""<style>
+.stApp {background-color: #F8FAFC;}
+h1, h2, h3 {color: #17324D !important;}
+div[data-testid="stMetric"] {background-color: white; padding: 12px;
+ border: 1px solid #DCE5EF; border-radius: 10px;}
+</style>""", unsafe_allow_html=True)
+
+
 def load_csv(filename):
-    matches = list(DATA_DIR.rglob(filename))
-
-    if not matches:
-        st.error(f"Cannot find {filename}")
+    paths = sorted(DATA_DIR.rglob(filename))
+    if not paths:
+        st.error(f"Missing CSV: data/teammates/jenny/{filename}")
         st.stop()
+    return pd.read_csv(paths[0])
 
-    return pd.read_csv(matches[0])
+
+def style(fig, height=420):
+    fig.update_layout(
+        template="plotly_white", height=height, paper_bgcolor="white",
+        plot_bgcolor="white", font=dict(family="Arial", size=13, color=NAVY),
+        legend=dict(orientation="h", y=1.12, x=0),
+        margin=dict(l=15, r=15, t=55, b=30),
+        hoverlabel=dict(bgcolor="white"),
+    )
+    fig.update_xaxes(gridcolor=GRID)
+    fig.update_yaxes(gridcolor=GRID)
+    return fig
 
 
-# Load Jenny's project-level data
 project = load_csv("member3_project_kpis.csv")
-hazard = load_csv("issue_hazard_summary.csv")
-followup = load_csv("good_catch_followup_by_severity.csv")
-active_priority = load_csv("active_project_management_priority.csv")
+active = load_csv("active_project_management_priority.csv")
 project_types = load_csv("project_type_executive_summary.csv")
+hazards = load_csv("issue_hazard_summary.csv")
+incident_hazards = load_csv("hazard_by_incident_classification.csv")
+followup = load_csv("good_catch_followup_by_severity.csv")
 
-
-# Page header
 st.title("Hazards & Prevention")
-st.caption(
-    "Layton Construction Safety Analytics | "
-    "Synthetic Data"
+st.caption("Layton Construction Safety Analytics | Synthetic dataset | Jenny's key analyses, recreated as interactive charts")
+
+selected = st.multiselect(
+    "Select Projects (updates project-level KPIs and active-project priorities)",
+    options=sorted(project["JOB_ID"].astype(str).unique()),
+    default=sorted(project["JOB_ID"].astype(str).unique()),
 )
-
-
-# Project filter
-selected_projects = st.multiselect(
-    "Select Projects",
-    options=sorted(project["JOB_ID"].unique()),
-    default=sorted(project["JOB_ID"].unique())
-)
-
-filtered = project[
-    project["JOB_ID"].isin(selected_projects)
-]
-
+filtered = project[project["JOB_ID"].isin(selected)]
 if filtered.empty:
-    st.warning("Please select at least one project.")
+    st.warning("Select at least one project.")
     st.stop()
 
-
-# KPI calculations
-total_issues = filtered["TOTAL_ISSUES"].sum()
-unresolved = filtered["UNRESOLVED_ISSUES"].sum()
-high_critical = filtered["HIGH_CRITICAL_UNRESOLVED"].sum()
-
-total_hours = filtered["TOTAL_HOURS"].sum()
-good_catches = filtered["GOOD_CATCHES"].sum()
-
-good_catch_rate = (
-    good_catches * 200000 / total_hours
-    if total_hours > 0 else 0
-)
-
-
-# KPI cards
 c1, c2, c3, c4 = st.columns(4)
+c1.metric("Safety Issues", f"{filtered['TOTAL_ISSUES'].sum():,.0f}")
+c2.metric("Unresolved Issues", f"{filtered['UNRESOLVED_ISSUES'].sum():,.0f}")
+c3.metric("Unresolved High/Critical", f"{filtered['HIGH_CRITICAL_UNRESOLVED'].sum():,.0f}")
+hours = filtered["TOTAL_HOURS"].sum()
+rate = (filtered["GOOD_CATCHES"].sum() * 200000 / hours) if hours else 0
+c4.metric("Good Catches / 200k Hours", f"{rate:.1f}")
+st.caption("KPI totals reflect the selected projects. High/Critical counts are recorded unresolved safety issues, not Good Catch follow-up labels.")
 
-c1.metric("Total Safety Issues", f"{total_issues:,.0f}")
-c2.metric("Unresolved Issues", f"{unresolved:,.0f}")
-c3.metric(
-    "High/Critical Unresolved",
-    f"{high_critical:,.0f}"
-)
-c4.metric(
-    "Good Catch Rate",
-    f"{good_catch_rate:.2f}"
-)
-
-st.caption(
-    "Good Catch Rate = Good Catches per 200,000 "
-    "work hours."
-)
-
-
-# Chart 1: Unresolved issues by project
-st.subheader("Unresolved Issues by Project")
-
-top_projects = filtered.nlargest(
-    10, "UNRESOLVED_ISSUES"
-).sort_values("UNRESOLVED_ISSUES")
-
-fig1 = px.bar(
-    top_projects,
-    x="UNRESOLVED_ISSUES",
-    y="JOB_NAME",
-    orientation="h",
-    color="UNRESOLVED_ISSUES",
-    color_continuous_scale="Blues",
-    labels={
-        "UNRESOLVED_ISSUES": "Unresolved Issues",
-        "JOB_NAME": "Project"
-    },
-    title="Top 10 Projects with Unresolved Safety Issues"
-)
-
-fig1.update_layout(coloraxis_showscale=False)
-style_chart(fig1, height=480)
-
-st.plotly_chart(fig1, use_container_width=True)
-
-
-# Chart 2: Hazard categories
-st.subheader("Hazard Category Distribution")
-
-hazard_sorted = hazard.sort_values(
-    "ISSUE_COUNT",
-    ascending=True
-)
-
-fig2 = px.bar(
-    hazard_sorted,
-    x="ISSUE_COUNT",
-    y="HAZARD_CATEGORY",
-    orientation="h",
-    color="ISSUE_COUNT",
-    color_continuous_scale="Blues",
-    labels={
-        "ISSUE_COUNT": "Number of Safety Issues",
-        "HAZARD_CATEGORY": "Hazard Category"
-    },
-    title="Safety Issues by Hazard Category"
-)
-
-fig2.update_layout(coloraxis_showscale=False)
-style_chart(fig2, height=480)
-
-st.plotly_chart(fig2, use_container_width=True)
-
-st.caption(
-    "Hazard category distribution covers all projects "
-    "and does not change with the project filter."
-)
-
-
-# Chart 3: Good Catch follow-up
-st.subheader("Good Catch Follow-up by Severity")
-
-fig3 = px.bar(
-    followup,
-    x="POTENTIAL_SEVERITY",
-    y=["COMPLETED_FOLLOWUPS", "OPEN_FOLLOWUPS"],
-    barmode="stack",
-    labels={
-        "POTENTIAL_SEVERITY": "Potential Severity",
-        "value": "Number of Follow-ups",
-        "variable": "Follow-up Status"
-    },
-    title="Completed vs Open Good Catch Follow-ups"
-)
-
-fig3.update_traces(
-    marker_color="#16A34A",
-    selector={"name": "COMPLETED_FOLLOWUPS"}
-)
-fig3.update_traces(
-    marker_color="#F59E0B",
-    selector={"name": "OPEN_FOLLOWUPS"}
-)
-fig3.for_each_trace(lambda trace: trace.update(
-    name={"COMPLETED_FOLLOWUPS": "Completed", "OPEN_FOLLOWUPS": "Open"}.get(trace.name, trace.name),
-    legendgroup={"COMPLETED_FOLLOWUPS": "Completed", "OPEN_FOLLOWUPS": "Open"}.get(trace.name, trace.name)
-))
-
-style_chart(fig3, height=420)
-
-st.plotly_chart(fig3, use_container_width=True)
-
-st.caption(
-    "Follow-up status covers all projects and does "
-    "not change with the project filter."
-)
-
-# Original labels are retained for transparency. The instructor advised
-# treating follow-ups without confirmed completion as completed for this exercise.
-# Do not interpret the "Open" source label as a verified unresolved hazard.
-recorded_completed = followup["COMPLETED_FOLLOWUPS"].sum()
-recorded_open = followup["OPEN_FOLLOWUPS"].sum()
-critical_open_label = followup.loc[
-    followup["POTENTIAL_SEVERITY"].astype(str).str.lower() == "critical",
-    "OPEN_FOLLOWUPS"
-].sum()
-st.info(
-    f"**Data interpretation:** The synthetic source data labels "
-    f"{recorded_completed:,.0f} Good Catch follow-ups as Completed and "
-    f"{recorded_open:,.0f} as Open (including "
-    f"{critical_open_label:,.0f} Critical-severity records). "
-    "These are recorded labels, **not independently verified outstanding hazards**. "
-    "Instructor clarification recommends assuming follow-ups without "
-    "confirmed completion are completed for this exercise. "
-    "Before taking management action, validate the actual follow-up and "
-    "corrective-action status with the project team."
-)
-
-
-# New: active projects to prioritize for corrective action
-st.subheader("Active Project Priorities")
-st.caption("Active projects only. Ranked by the number of unresolved High/Critical issues; this is a prioritization view, not a predicted risk score.")
-active_view = active_priority[active_priority["JOB_ID"].isin(selected_projects)].copy()
-if not active_view.empty:
-    top_active = active_view.nlargest(10, "HIGH_CRITICAL_UNRESOLVED").sort_values("HIGH_CRITICAL_UNRESOLVED")
-    fig4 = px.bar(
-        top_active,
-        x="HIGH_CRITICAL_UNRESOLVED", y="JOB_NAME", orientation="h",
-        color="HIGH_CRITICAL_UNRESOLVED", color_continuous_scale="OrRd",
-        labels={"HIGH_CRITICAL_UNRESOLVED": "Open High/Critical Issues", "JOB_NAME": "Active Project"},
-        title="Active Projects with the Most Unresolved High/Critical Issues"
-    )
-    fig4.update_layout(coloraxis_showscale=False)
-    style_chart(fig4, height=470)
-    st.plotly_chart(fig4, use_container_width=True)
-    st.info("Management action: assign accountable owners and verify closure of high-severity issues on priority projects.")
-else:
-    st.info("No active projects in the current selection.")
-
-# New: comparison across project types (portfolio-wide summary)
-st.subheader("Safety Performance by Project Type")
-st.caption("Portfolio-wide comparison; this chart does not respond to the project selector above.")
-fig5 = px.bar(
-    project_types.sort_values("SAFETY_INCIDENT_RATE", ascending=False),
-    x="PROJECT_TYPE", y="SAFETY_INCIDENT_RATE",
-    color="SAFETY_INCIDENT_RATE", color_continuous_scale="Blues",
-    hover_data=["PROJECT_COUNT", "LTA_RATE", "TOP_SEVERE_HAZARD"],
-    labels={"PROJECT_TYPE": "Project Type", "SAFETY_INCIDENT_RATE": "Safety Incident Rate"},
-    title="Safety Incident Rate Across Project Types"
-)
-fig5.update_layout(coloraxis_showscale=False)
-style_chart(fig5, height=430)
-st.plotly_chart(fig5, use_container_width=True)
-st.caption("Compare rates rather than raw incident counts; differences are descriptive and do not establish causation.")
-
-# Restore Jenny's original analytical figures and findings.
-# These figures come from her November 19 submission and are portfolio-wide.
 st.divider()
-st.subheader("Jenny's Original Analysis — Key Figures")
-st.caption(
-    "Original figures supplied by Jenny. These summarize the synthetic dataset "
-    "and do not change with the project selector."
-)
+st.subheader("Jenny's Three Priority Analyses")
+st.caption("Blue and orange echo Jenny's original charts, while the interactive visuals use the same white background as the team dashboard.")
+t1, t2, t3 = st.tabs(["1. Serious hazards", "2. Frequency vs consequence", "3. Project types"])
 
-original_figures = [
-    (
-        "Priority 1 | Open High/Critical Issues in Active Projects",
-        "unresolved_issues_presentation.png",
-        "Focus on severity, open percentage, assigned owners, and verification of closure—not volume alone.",
-    ),
-    (
-        "Priority 2 | Hazard Frequency vs. Consequence",
-        "hazard_frequency_and_severity.png",
-        "Fall-related hazards can have more serious outcomes even when other hazards occur more often.",
-    ),
-    (
-        "Priority 3 | Safety and LTA Rates by Project Type",
-        "safety_and_lta_rate_by_project_type.png",
-        "Safety outcomes differ by project type, but each group has only about 5–6 projects; interpret as exploratory.",
-    ),
-]
-
-for heading, filename, insight in original_figures:
-    st.markdown(f"**{heading}**")
-    image_path = FIGURE_DIR / filename
-    if image_path.is_file():
-        st.image(str(image_path), use_container_width=True)
+with t1:
+    st.markdown("**Prioritize high-severity hazards after detection**")
+    av = active[active["JOB_ID"].isin(selected)].copy()
+    if av.empty:
+        st.info("No active projects in this selection.")
     else:
-        st.warning(
-            f"Original figure not yet uploaded: assets/jenny/{filename}. "
-            "Upload this PNG to display Jenny's original analysis."
-        )
-    st.caption(insight)
+        av = av.nlargest(10, "HIGH_CRITICAL_UNRESOLVED").copy()
+        av["Other unresolved (Low/Medium)"] = (
+            av["UNRESOLVED_ISSUES"] - av["HIGH_CRITICAL_UNRESOLVED"]
+        ).clip(lower=0)
+        av = av.sort_values("HIGH_CRITICAL_UNRESOLVED")
+        f = go.Figure()
+        f.add_bar(y=av["JOB_NAME"], x=av["Other unresolved (Low/Medium)"],
+                  orientation="h", name="Other unresolved", marker_color=BLUE,
+                  customdata=av[["UNRESOLVED_ISSUE_PCT", "MEDIAN_RESOLUTION_DAYS"]].to_numpy(),
+                  hovertemplate="%{y}<br>Other unresolved: %{x}<br>All-issue open rate: %{customdata[0]:.1f}%<br>Median resolution: %{customdata[1]:.0f} days<extra></extra>")
+        f.add_bar(y=av["JOB_NAME"], x=av["HIGH_CRITICAL_UNRESOLVED"],
+                  orientation="h", name="High/Critical unresolved", marker_color=ORANGE,
+                  hovertemplate="%{y}<br>High/Critical unresolved: %{x}<extra></extra>")
+        f.update_layout(barmode="stack", xaxis_title="Unresolved issues", yaxis_title="",
+                        title="Active Projects | Top 10 by Unresolved High/Critical Issues")
+        st.plotly_chart(style(f, max(430, len(av)*39 + 135)), use_container_width=True)
+        st.caption("Active projects only; top ten ranked by unresolved High/Critical issue count. Hover for unresolved percentage and typical resolution time. Severity grouping assumes the high/critical subset is included within all unresolved issues.")
+    st.info("**Management action:** Assign owners to unresolved High/Critical issues; track issue age and closure verification. Do not prioritize projects by raw issue count alone.")
+
+with t2:
+    st.markdown("**Consider severity as well as how often hazards are reported**")
+    left, right = st.columns(2)
+    with left:
+        h = hazards.sort_values("ISSUE_COUNT", ascending=True)
+        f = px.bar(h, x="ISSUE_COUNT", y="HAZARD_CATEGORY", orientation="h",
+                   color_discrete_sequence=[BLUE],
+                   labels={"ISSUE_COUNT": "Safety issue records", "HAZARD_CATEGORY": ""},
+                   title="Reported Issue Categories | Frequency")
+        st.plotly_chart(style(f, 455), use_container_width=True)
+    with right:
+        ih = incident_hazards.copy()
+        severity_cols = [c for c in ["First Aid", "Lost Time Accident", "REC", "RECR"] if c in ih.columns]
+        long = ih.melt(id_vars="OSHA_HAZARD_CATEGORY", value_vars=severity_cols,
+                       var_name="Classification", value_name="Count")
+        f = px.bar(long, x="Count", y="OSHA_HAZARD_CATEGORY", orientation="h",
+                   color="Classification", barmode="stack",
+                   color_discrete_map={"First Aid": BLUE, "Lost Time Accident": ORANGE,
+                                       "REC": NAVY, "RECR": "#7C8BA1"},
+                   labels={"OSHA_HAZARD_CATEGORY": "", "Count": "Incident records"},
+                   title="Incident Hazards | Injury Classifications")
+        st.plotly_chart(style(f, 455), use_container_width=True)
+    st.caption("Portfolio-wide, unaffected by project selection. Issue HAZARD_CATEGORY and incident OSHA_HAZARD_CATEGORY are different classification systems; the two charts are comparisons, not linked records. LTA is shown separately; REC/RECR meanings should follow the case guide.")
+    st.info("**Management action:** Prioritize fall-prevention controls for serious outcomes, while maintaining targeted checks for frequently reported issue categories. Frequency alone is not a severity score.")
+
+with t3:
+    st.markdown("**Tailor prevention to project type, without claiming causation**")
+    typ = project_types.sort_values("SAFETY_INCIDENT_RATE", ascending=False)
+    f = go.Figure()
+    f.add_bar(x=typ["PROJECT_TYPE"], y=typ["SAFETY_INCIDENT_RATE"], name="Safety incident rate", marker_color=BLUE,
+              customdata=typ[["PROJECT_COUNT", "TOP_SEVERE_HAZARD"]].to_numpy(),
+              hovertemplate="%{x}<br>Incident rate: %{y:.2f}<br>Projects: %{customdata[0]}<br>Severe hazard: %{customdata[1]}<extra></extra>")
+    f.add_bar(x=typ["PROJECT_TYPE"], y=typ["LTA_RATE"], name="Lost Time Accident rate", marker_color=ORANGE,
+              hovertemplate="%{x}<br>LTA rate: %{y:.2f}<extra></extra>")
+    f.update_layout(barmode="group", title="Safety and LTA Rates by Project Type",
+                    xaxis_title="", yaxis_title="Incidents per 200,000 person-hours")
+    st.plotly_chart(style(f, 450), use_container_width=True)
+    st.caption("Portfolio-wide (not filtered). Each type includes about 5–6 projects; results are exploratory and exposure-adjusted, not proof that any project type is inherently riskier.")
+    st.info("**Management action:** Tailor pre-task planning, safety walks, access equipment, and training to each project's dominant hazards.")
 
 st.divider()
-st.subheader("Key Findings & Recommendations — Jenny's Analysis")
+st.subheader("Good Catch Reporting | Recorded Follow-up Status")
+with st.expander("Explore Good Catch follow-ups by severity (source labels)", expanded=False):
+    long = followup.melt(id_vars="POTENTIAL_SEVERITY",
+                        value_vars=["COMPLETED_FOLLOWUPS", "OPEN_FOLLOWUPS"],
+                        var_name="Status", value_name="Count")
+    long["Status"] = long["Status"].map({"COMPLETED_FOLLOWUPS": "Recorded Completed", "OPEN_FOLLOWUPS": "Recorded Open"})
+    f = px.bar(long, x="POTENTIAL_SEVERITY", y="Count", color="Status", barmode="stack",
+               color_discrete_map={"Recorded Completed": GREEN, "Recorded Open": ORANGE},
+               title="Good Catch Follow-up Labels by Potential Severity")
+    st.plotly_chart(style(f, 370), use_container_width=True)
+    st.caption("Portfolio-wide; does not change with project selection. Instructor guidance recommends assuming follow-ups without confirmed completion are completed for this exercise. 'Recorded Open' does not establish that hazards are still unresolved. Validate actual completion before operational use.")
+
+st.subheader("Four Key Findings & Recommended Actions")
 st.markdown("""
-**1. Prioritize High-Severity Hazards After Detection**
+**1. Resolve serious hazards with accountability.** In Jenny's active-project analysis, 992 issues were identified; 481 were recorded unresolved and 352 were High/Critical. Verify owners, issue age, corrective actions, and closure.
 
-Across the **active projects**, Jenny identified **992 safety issues**, including
-**481 recorded as Open or In Progress (48.5%)** and **352 unresolved High/Critical issues**.
-Prioritize assignment of owners, escalation, aging review, target dates, and
-**verification after closure**. Use unresolved percentage and severity, not only raw totals.
+**2. Look beyond frequency.** Fall-related incidents can carry severe consequences. Prioritize work-at-height controls and safer access methods, not only commonly reported issues.
 
-**2. Prioritize Consequence, Not Just Hazard Frequency**
+**3. Adapt prevention by project type.** Issue detection rates were relatively similar (36.7–41.3 per 200,000 person-hours), while incident and LTA rates varied. Use project-specific planning; small project-type samples limit generalization.
 
-Fall-related incidents, particularly ladder and elevated-work falls, show
-serious outcomes in this synthetic dataset. Prioritize eliminating work at height
-where feasible, safer access equipment, and engineering controls; supplement with
-training and PPE, following the hierarchy of controls.
-
-**3. Tailor Prevention by Project Type**
-
-Jenny observed fairly similar issue-detection rates across project types
-(**36.7–41.3 per 200,000 person-hours**), but larger differences in safety
-incident rates (**0.31–1.41**) and LTA rates (**0.00–0.88**).
-Tailor PTP focus areas, safety walks, access/equipment plans, and training to
-project-specific hazards. **Each project type has only around 5–6 projects:**
-these differences are exploratory, not proof of inherently safer project types.
-
-**4. Treat Good Catches as a Leading Indicator of Reporting Activity**
-
-Jenny recorded **1,000 Good Catches**; among **805 requiring follow-up**, the
-source labels are **395 Completed** and **410 Open**. Encourage easy, safe reporting,
-positive feedback, and clear follow-up documentation. More Good Catch reports
-should not automatically be interpreted as worse safety performance.
-
-**Important clarification:** Recorded Open labels are **not independently
-verified outstanding hazards**. Instructor guidance suggests assuming
-unconfirmed Good Catch follow-ups are completed for this exercise. Do not claim
-all 410 source-labeled Open follow-ups are still unresolved.
-
-**Overall management direction:** Move earlier in the safety process—from
-reviewing incidents after they occur to identifying serious hazards,
-unresolved corrective actions, and project-specific risk patterns that warrant
-proactive review. These are descriptive findings from synthetic data and
-**do not establish causal effects**.
+**4. Encourage Good Catches as a reporting indicator.** The synthetic portfolio contains 1,000 Good Catches; among 805 labeled as requiring follow-up, 395 were recorded Completed and 410 Open. Source status labels are not verified unresolved hazards; document completion consistently and reinforce reporting.
 """)
-
-with st.expander("Research references supporting prevention recommendations"):
+st.caption("Descriptive analysis of synthetic data. Results do not show causation, real-time conditions, or validated predictive risk.")
+with st.expander("Industry references"):
     st.markdown("""
-    - [OSHA — Worker Participation](https://www.osha.gov/safety-management/worker-participation)
-    - [OSHA — Hazard Identification](https://www.osha.gov/safety-management/hazard-identification)
-    - [CPWR — Safety Climate Assessment Tool (S-CAT)](https://www.cpwr.com/research/management-resources-from-research/safety-culture-and-safety-climate/safety-climate-assessment-tool-s-cat/)
-    - [NIOSH — Falls Stand-Down](https://www.cdc.gov/niosh/bulletin/2023/falls-stand-down.html)
-    """)
+- [OSHA — Hazard Identification](https://www.osha.gov/safety-management/hazard-identification)
+- [OSHA — Worker Participation](https://www.osha.gov/safety-management/worker-participation)
+- [CPWR — Safety Climate Assessment Tool](https://www.cpwr.com/research/management-resources-from-research/safety-culture-and-safety-climate/safety-climate-assessment-tool-s-cat/)
+""")
