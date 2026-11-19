@@ -26,6 +26,17 @@ st.markdown(
     """
 )
 
+st.subheader("Project Introduction")
+
+video_path = (
+    BASE_DIR
+    / "assets"
+    / "videos"
+    / "Layton_AI_Opening_With_Music.mp4"
+)
+
+st.video(str(video_path))
+
 st.divider()
 
 # Portfolio-level workforce metrics
