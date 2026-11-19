@@ -39,6 +39,7 @@ st.set_page_config(
 )
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+FIGURE_DIR = BASE_DIR / "assets" / "jenny"
 DATA_DIR = BASE_DIR / "data" / "teammates" / "jenny"
 
 
@@ -275,37 +276,94 @@ style_chart(fig5, height=430)
 st.plotly_chart(fig5, use_container_width=True)
 st.caption("Compare rates rather than raw incident counts; differences are descriptive and do not establish causation.")
 
-# Management interpretation
-st.subheader("Key Findings & Recommendations")
-
-st.markdown(
-    """
-    **1. Unresolved Safety Issues**
-
-    Prioritize projects with high numbers of unresolved
-    issues, especially high- and critical-severity cases.
-
-    **2. Hazard Prevention**
-
-    Use frequently reported hazard categories to guide
-    targeted inspections and preventive training.
-
-    **3. Good Catch Follow-up**
-
-    Track documented follow-up status and improve closure records.
-    Because the instructor advised assuming unconfirmed follow-ups are
-    completed for this exercise, validate statuses before treating a
-    recorded Open label as an outstanding safety hazard.
-
-    **4. Project-Specific Prevention**
-
-    Tailor prevention programs to the hazard profiles and safety rates of different project types.
-
-    **Management Recommendation**
-
-    Combine issue volume, severity, resolution progress,
-    and Good Catch reporting when prioritizing safety
-    management resources. These descriptive metrics do
-    not establish causal relationships.
-    """
+# Restore Jenny's original analytical figures and findings.
+# These figures come from her November 19 submission and are portfolio-wide.
+st.divider()
+st.subheader("Jenny's Original Analysis — Key Figures")
+st.caption(
+    "Original figures supplied by Jenny. These summarize the synthetic dataset "
+    "and do not change with the project selector."
 )
+
+original_figures = [
+    (
+        "Priority 1 | Open High/Critical Issues in Active Projects",
+        "unresolved_issues_presentation.png",
+        "Focus on severity, open percentage, assigned owners, and verification of closure—not volume alone.",
+    ),
+    (
+        "Priority 2 | Hazard Frequency vs. Consequence",
+        "hazard_frequency_and_severity.png",
+        "Fall-related hazards can have more serious outcomes even when other hazards occur more often.",
+    ),
+    (
+        "Priority 3 | Safety and LTA Rates by Project Type",
+        "safety_and_lta_rate_by_project_type.png",
+        "Safety outcomes differ by project type, but each group has only about 5–6 projects; interpret as exploratory.",
+    ),
+]
+
+for heading, filename, insight in original_figures:
+    st.markdown(f"**{heading}**")
+    image_path = FIGURE_DIR / filename
+    if image_path.is_file():
+        st.image(str(image_path), use_container_width=True)
+    else:
+        st.warning(
+            f"Original figure not yet uploaded: assets/jenny/{filename}. "
+            "Upload this PNG to display Jenny's original analysis."
+        )
+    st.caption(insight)
+
+st.divider()
+st.subheader("Key Findings & Recommendations — Jenny's Analysis")
+st.markdown("""
+**1. Prioritize High-Severity Hazards After Detection**
+
+Across the **active projects**, Jenny identified **992 safety issues**, including
+**481 recorded as Open or In Progress (48.5%)** and **352 unresolved High/Critical issues**.
+Prioritize assignment of owners, escalation, aging review, target dates, and
+**verification after closure**. Use unresolved percentage and severity, not only raw totals.
+
+**2. Prioritize Consequence, Not Just Hazard Frequency**
+
+Fall-related incidents, particularly ladder and elevated-work falls, show
+serious outcomes in this synthetic dataset. Prioritize eliminating work at height
+where feasible, safer access equipment, and engineering controls; supplement with
+training and PPE, following the hierarchy of controls.
+
+**3. Tailor Prevention by Project Type**
+
+Jenny observed fairly similar issue-detection rates across project types
+(**36.7–41.3 per 200,000 person-hours**), but larger differences in safety
+incident rates (**0.31–1.41**) and LTA rates (**0.00–0.88**).
+Tailor PTP focus areas, safety walks, access/equipment plans, and training to
+project-specific hazards. **Each project type has only around 5–6 projects:**
+these differences are exploratory, not proof of inherently safer project types.
+
+**4. Treat Good Catches as a Leading Indicator of Reporting Activity**
+
+Jenny recorded **1,000 Good Catches**; among **805 requiring follow-up**, the
+source labels are **395 Completed** and **410 Open**. Encourage easy, safe reporting,
+positive feedback, and clear follow-up documentation. More Good Catch reports
+should not automatically be interpreted as worse safety performance.
+
+**Important clarification:** Recorded Open labels are **not independently
+verified outstanding hazards**. Instructor guidance suggests assuming
+unconfirmed Good Catch follow-ups are completed for this exercise. Do not claim
+all 410 source-labeled Open follow-ups are still unresolved.
+
+**Overall management direction:** Move earlier in the safety process—from
+reviewing incidents after they occur to identifying serious hazards,
+unresolved corrective actions, and project-specific risk patterns that warrant
+proactive review. These are descriptive findings from synthetic data and
+**do not establish causal effects**.
+""")
+
+with st.expander("Research references supporting prevention recommendations"):
+    st.markdown("""
+    - [OSHA — Worker Participation](https://www.osha.gov/safety-management/worker-participation)
+    - [OSHA — Hazard Identification](https://www.osha.gov/safety-management/hazard-identification)
+    - [CPWR — Safety Climate Assessment Tool (S-CAT)](https://www.cpwr.com/research/management-resources-from-research/safety-culture-and-safety-climate/safety-climate-assessment-tool-s-cat/)
+    - [NIOSH — Falls Stand-Down](https://www.cdc.gov/niosh/bulletin/2023/falls-stand-down.html)
+    """)
