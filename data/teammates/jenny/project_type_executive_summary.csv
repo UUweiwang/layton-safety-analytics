@@ -1,0 +1,8 @@
+PROJECT_TYPE,PROJECT_COUNT,ISSUE_DETECTION_RATE,GOOD_CATCH_DETECTION_RATE,SAFETY_INCIDENT_RATE,LTA_RATE,TOP_SEVERE_HAZARD
+Commercial,6,36.7,20.0,1.41,0.82,Falling or Shifting Object
+Residential,6,38.5,20.4,1.22,0.15,Manual Material Handling
+Infrastructure,5,41.3,21.2,1.07,0.76,Fall from Elevated Work Surface
+Civic,5,39.6,17.0,0.88,0.88,Ladder Fall
+Education,6,40.4,19.2,0.83,0.48,Ladder Fall
+Healthcare,6,39.8,18.6,0.69,0.23,Overexertion / Body Mechanics
+Industrial,6,38.9,21.1,0.31,0.0,Manual Material Handling
