@@ -309,38 +309,87 @@ st.caption(
 
 
 # ==========================================
-# 8. Key Findings & Recommendations
+# 8. Decision Support: Projects to Review
 # ==========================================
 
 st.divider()
-st.subheader("Key Findings & Recommendations")
+st.subheader("Workforce Risk — Management Attention")
+st.caption(
+    "Descriptive screening only: projects are ordered by observed incident rate, "
+    "not by predicted accident probability. Small projects may have volatile rates."
+)
 
-st.markdown("""
-**Finding 1 — Overtime and Safety Risk**
+priority = filtered.loc[filtered["TOTAL_HOURS"] > 0].copy()
+priority = priority.sort_values(
+    ["INCIDENT_RATE", "RECORDABLE_INCIDENTS"], ascending=[False, False]
+).head(10)
 
-Overtime rate shows a weak positive correlation with
-recordable incident rate (r = 0.152).
+priority_cols = [
+    "JOB_ID", "OVERTIME_RATE", "AVG_HEADCOUNT", "TOTAL_HOURS",
+    "RECORDABLE_INCIDENTS", "INCIDENT_RATE"
+]
+st.dataframe(
+    priority[priority_cols].rename(columns={
+        "JOB_ID": "Project ID",
+        "OVERTIME_RATE": "Overtime (%)",
+        "AVG_HEADCOUNT": "Avg. Headcount",
+        "TOTAL_HOURS": "Work Hours",
+        "RECORDABLE_INCIDENTS": "Recordable Incidents",
+        "INCIDENT_RATE": "Incidents / 200k Hours"
+    }),
+    use_container_width=True,
+    hide_index=True
+)
 
-**Finding 2 — Workforce Size and Safety Risk**
+st.info(
+    "Recommended review: verify exposure hours and incident counts, "
+    "check overtime patterns and staffing conditions, and coordinate with "
+    "the safety team to review unresolved high-severity hazards. "
+    "Do not interpret this ranking as a causal or predictive risk score."
+)
 
-Average headcount also shows a weak positive correlation
-with incident rate (r = 0.164).
+# ==========================================
+# 9. Key Findings & Actionable Recommendations
+# ==========================================
 
-**Finding 3 — Annual Safety Trends**
+st.divider()
+st.subheader("Key Findings & Recommended Actions")
 
-Recordable incident rates declined from 2024 to 2026,
-while overtime rates remained around 10%.
+if pd.notna(overtime_corr):
+    overtime_message = f"Pearson r = {overtime_corr:+.3f} for the selected projects."
+else:
+    overtime_message = "Correlation unavailable for the selected projects."
 
-**Management Recommendation**
+if pd.notna(headcount_corr):
+    headcount_message = f"Pearson r = {headcount_corr:+.3f} for the selected projects."
+else:
+    headcount_message = "Correlation unavailable for the selected projects."
 
-Monitor overtime exposure and workforce conditions alongside
-safety inspections, hazard reporting, and project characteristics.
-Investigate projects with elevated incident rates before making
-operational policy changes.
+st.markdown(f"""
+**1. Overtime exposure — {overtime_message}**
+
+**Action:** Review overtime schedules and fatigue-management practices in
+projects with elevated incident rates. Track overtime and incidents together
+before deciding whether staffing or shift changes are warranted.
+
+**2. Workforce size — {headcount_message}**
+
+**Action:** Check whether high-incident-rate projects have sufficient safety
+orientation, supervision, and onboarding coverage for their workforce size.
+
+**3. Historical trend — all-project summary**
+
+The synthetic dataset shows a lower annual recordable incident rate in
+2026 (January–September) than in 2024. This is descriptive, not evidence
+that overtime policies caused the change.
+
+**Action:** Continue tracking incidents per 200,000 hours, alongside hazard
+closure and Good Catch follow-up. Review the results by project before
+allocating additional prevention resources.
 """)
 
 st.caption(
-    "Findings are based on all 40 projects. "
-    "Correlations do not establish causation. "
-    "Results are based on synthetic data."
+    "The project filter affects KPIs, scatterplots, correlations, and the "
+    "management-attention table. Annual trend charts remain all-project "
+    "summaries. Correlations do not establish causation. Synthetic data."
 )
