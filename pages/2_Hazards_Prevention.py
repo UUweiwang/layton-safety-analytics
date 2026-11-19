@@ -9,18 +9,43 @@ st.set_page_config(page_title="Hazards & Prevention", layout="wide")
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data" / "teammates" / "jenny"
 
-NAVY = "#17324D"
-BLUE = "#38B6DE"
-ORANGE = "#F59A54"
-GREEN = "#16A34A"
-GRID = "#E2E8F0"
+NAVY = "#142D4E"       # Enterprise navy
+BLUE = "#2864A0"       # Corporate blue
+ORANGE = "#D58A32"     # Caution / High-Critical (not decorative)
+GREEN = "#287B62"      # Completed status
+GRID = "#E5EAF1"
 
-st.markdown("""<style>
-.stApp {background-color: #F8FAFC;}
-h1, h2, h3 {color: #17324D !important;}
-div[data-testid="stMetric"] {background-color: white; padding: 12px;
- border: 1px solid #DCE5EF; border-radius: 10px;}
-</style>""", unsafe_allow_html=True)
+st.markdown("""
+<style>
+/* Clean executive design: a muted page, white panels and restrained status colors. */
+.stApp {background: #F5F7FA; color: #24364D;}
+.block-container {max-width: 1320px; padding-top: 1.8rem; padding-bottom: 2.5rem;}
+h1, h2, h3 {color: #142D4E !important; letter-spacing: -0.018em;}
+h1 {font-weight: 750 !important;}
+[data-testid="stMetric"] {
+  background: #FFFFFF; border: 1px solid #E1E7EF;
+  border-radius: 10px; padding: 18px 18px 14px;
+  box-shadow: 0 2px 10px rgba(20,45,78,0.035);
+}
+[data-testid="stMetricLabel"] {color:#576A82; font-weight:600;}
+[data-testid="stMetricValue"] {color:#142D4E;}
+[data-testid="stTabs"] button {font-weight:650;}
+[data-testid="stAlert"] {border-radius: 9px;}
+/* Executive insight panel */
+.exec-panel {
+  padding: 16px 18px; background: #FFFFFF; border: 1px solid #E1E7EF;
+  border-left: 4px solid #2864A0; border-radius: 8px;
+  margin: 8px 0 14px;
+}
+.exec-panel strong {color:#142D4E;}
+.action-label {font-size: .75rem; font-weight: 750; letter-spacing:.06em; color:#607389;}
+.exec-card {background:#FFFFFF; border:1px solid #E1E7EF; border-radius:9px;
+  padding: 16px 18px; min-height: 140px; height:100%;}
+.exec-card .card-id {font-size:.72rem; letter-spacing:.07em; color:#63758B; font-weight:700;}
+.exec-card .card-title {font-size:1rem; color:#142D4E; font-weight:750; margin:6px 0 8px;}
+.exec-card .card-desc {font-size:.88rem; color:#40536A; line-height:1.55;}
+</style>
+""", unsafe_allow_html=True)
 
 
 def load_csv(filename):
@@ -34,7 +59,7 @@ def load_csv(filename):
 def style(fig, height=420):
     fig.update_layout(
         template="plotly_white", height=height, paper_bgcolor="white",
-        plot_bgcolor="white", font=dict(family="Arial", size=13, color=NAVY),
+        plot_bgcolor="white", font=dict(family="Arial", size=13, color="#24364D"),
         legend=dict(orientation="h", y=1.12, x=0),
         margin=dict(l=15, r=15, t=55, b=30),
         hoverlabel=dict(bgcolor="white"),
@@ -52,10 +77,11 @@ incident_hazards = load_csv("hazard_by_incident_classification.csv")
 followup = load_csv("good_catch_followup_by_severity.csv")
 
 st.title("Hazards & Prevention")
-st.caption("Layton Construction Safety Analytics | Synthetic dataset | Jenny's key analyses, recreated as interactive charts")
+st.caption("LAYTON SAFETY ANALYTICS  /  MANAGEMENT DASHBOARD  /  SYNTHETIC DATA")
+st.markdown("""<div class="exec-panel"><strong>Executive question:</strong> Where should safety leaders focus corrective-action resources, and which prevention measures should be prioritized?</div>""", unsafe_allow_html=True)
 
 selected = st.multiselect(
-    "Select Projects (updates project-level KPIs and active-project priorities)",
+    "Project selection — updates KPI cards and active-project priorities",
     options=sorted(project["JOB_ID"].astype(str).unique()),
     default=sorted(project["JOB_ID"].astype(str).unique()),
 )
@@ -67,15 +93,15 @@ if filtered.empty:
 c1, c2, c3, c4 = st.columns(4)
 c1.metric("Safety Issues", f"{filtered['TOTAL_ISSUES'].sum():,.0f}")
 c2.metric("Unresolved Issues", f"{filtered['UNRESOLVED_ISSUES'].sum():,.0f}")
-c3.metric("Unresolved High/Critical", f"{filtered['HIGH_CRITICAL_UNRESOLVED'].sum():,.0f}")
+c3.metric("High / Critical Open Issues", f"{filtered['HIGH_CRITICAL_UNRESOLVED'].sum():,.0f}")
 hours = filtered["TOTAL_HOURS"].sum()
 rate = (filtered["GOOD_CATCHES"].sum() * 200000 / hours) if hours else 0
 c4.metric("Good Catches / 200k Hours", f"{rate:.1f}")
 st.caption("KPI totals reflect the selected projects. High/Critical counts are recorded unresolved safety issues, not Good Catch follow-up labels.")
 
 st.divider()
-st.subheader("Jenny's Three Priority Analyses")
-st.caption("Blue and orange echo Jenny's original charts, while the interactive visuals use the same white background as the team dashboard.")
+st.subheader("Safety Priorities")
+st.caption("Three complementary analyses. The selected-project filter affects only project-level metrics and active-project ranking.")
 t1, t2, t3 = st.tabs(["1. Serious hazards", "2. Frequency vs consequence", "3. Project types"])
 
 with t1:
@@ -101,7 +127,7 @@ with t1:
                         title="Active Projects | Top 10 by Unresolved High/Critical Issues")
         st.plotly_chart(style(f, max(430, len(av)*39 + 135)), use_container_width=True)
         st.caption("Active projects only; top ten ranked by unresolved High/Critical issue count. Hover for unresolved percentage and typical resolution time. Severity grouping assumes the high/critical subset is included within all unresolved issues.")
-    st.info("**Management action:** Assign owners to unresolved High/Critical issues; track issue age and closure verification. Do not prioritize projects by raw issue count alone.")
+    st.markdown("""<div class="exec-panel"><span class="action-label">RECOMMENDED ACTION</span><div><strong>Assign accountable owners</strong> to High/Critical items; review issue age and verify closure. Raw counts indicate attention needs, not predicted incident risk.</div></div>""", unsafe_allow_html=True)
 
 with t2:
     st.markdown("**Consider severity as well as how often hazards are reported**")
@@ -126,7 +152,7 @@ with t2:
                    title="Incident Hazards | Injury Classifications")
         st.plotly_chart(style(f, 455), use_container_width=True)
     st.caption("Portfolio-wide, unaffected by project selection. Issue HAZARD_CATEGORY and incident OSHA_HAZARD_CATEGORY are different classification systems; the two charts are comparisons, not linked records. LTA is shown separately; REC/RECR meanings should follow the case guide.")
-    st.info("**Management action:** Prioritize fall-prevention controls for serious outcomes, while maintaining targeted checks for frequently reported issue categories. Frequency alone is not a severity score.")
+    st.markdown("""<div class="exec-panel"><span class="action-label">RECOMMENDED ACTION</span><div><strong>Target consequential hazards</strong> such as falls while continuing frequent-category inspections. Frequency alone does not measure severity.</div></div>""", unsafe_allow_html=True)
 
 with t3:
     st.markdown("**Tailor prevention to project type, without claiming causation**")
@@ -141,7 +167,7 @@ with t3:
                     xaxis_title="", yaxis_title="Incidents per 200,000 person-hours")
     st.plotly_chart(style(f, 450), use_container_width=True)
     st.caption("Portfolio-wide (not filtered). Each type includes about 5–6 projects; results are exploratory and exposure-adjusted, not proof that any project type is inherently riskier.")
-    st.info("**Management action:** Tailor pre-task planning, safety walks, access equipment, and training to each project's dominant hazards.")
+    st.markdown("""<div class="exec-panel"><span class="action-label">RECOMMENDED ACTION</span><div><strong>Adapt safety controls</strong> by project context: pre-task planning, Focus Walks, access equipment and targeted training.</div></div>""", unsafe_allow_html=True)
 
 st.divider()
 st.subheader("Good Catch Reporting | Recorded Follow-up Status")
@@ -156,16 +182,32 @@ with st.expander("Explore Good Catch follow-ups by severity (source labels)", ex
     st.plotly_chart(style(f, 370), use_container_width=True)
     st.caption("Portfolio-wide; does not change with project selection. Instructor guidance recommends assuming follow-ups without confirmed completion are completed for this exercise. 'Recorded Open' does not establish that hazards are still unresolved. Validate actual completion before operational use.")
 
-st.subheader("Four Key Findings & Recommended Actions")
-st.markdown("""
-**1. Resolve serious hazards with accountability.** In Jenny's active-project analysis, 992 issues were identified; 481 were recorded unresolved and 352 were High/Critical. Verify owners, issue age, corrective actions, and closure.
-
-**2. Look beyond frequency.** Fall-related incidents can carry severe consequences. Prioritize work-at-height controls and safer access methods, not only commonly reported issues.
-
-**3. Adapt prevention by project type.** Issue detection rates were relatively similar (36.7–41.3 per 200,000 person-hours), while incident and LTA rates varied. Use project-specific planning; small project-type samples limit generalization.
-
-**4. Encourage Good Catches as a reporting indicator.** The synthetic portfolio contains 1,000 Good Catches; among 805 labeled as requiring follow-up, 395 were recorded Completed and 410 Open. Source status labels are not verified unresolved hazards; document completion consistently and reinforce reporting.
-""")
+st.divider()
+st.subheader("Executive Findings & Actions")
+st.caption("Four decisions supported by Jenny's descriptive analysis; supporting detail is in the interactive charts above.")
+findings = [
+    ("01", "Close serious hazards", "Prioritize High/Critical issues, verify corrective actions, and document ownership."),
+    ("02", "Look beyond volume", "Falls may have severe consequences even when their issue frequency is not highest."),
+    ("03", "Match controls to sites", "Different project types warrant tailored planning, access controls and training."),
+    ("04", "Verify Good Catch follow-up", "Treat status labels as reporting information; confirm actual completion before escalating."),
+]
+cols = st.columns(2)
+for idx, (num, heading, detail) in enumerate(findings):
+    with cols[idx % 2]:
+        st.markdown(
+            f'<div class="exec-card"><div class="card-id">PRIORITY {num}</div>'
+            f'<div class="card-title">{heading}</div>'
+            f'<div class="card-desc">{detail}</div></div>',
+            unsafe_allow_html=True,
+        )
+        st.write("")
+with st.expander("Supporting evidence and caveats", expanded=False):
+    st.markdown("""
+    - **Open issues:** Jenny's active-project analysis identified 992 safety issues, 481 recorded as unresolved, including 352 High/Critical. These values apply to the specific active-project analytical subset, not necessarily the current project filter.
+    - **Project-type comparison:** Reported issue detection rates were comparatively similar (36.7–41.3 per 200,000 person-hours), while incident/LTA rates varied; approximately five to six projects per type limit generalization.
+    - **Good Catch records:** Across the synthetic portfolio there were 1,000 Good Catches; among 805 records flagged for follow-up, 395 were labeled Completed and 410 Open. Recorded status is not the same as verified outstanding work. Follow instructor guidance on unconfirmed completion.
+    - **Interpretation:** These patterns are descriptive, not causal, real-time or predictive.
+    """)
 st.caption("Descriptive analysis of synthetic data. Results do not show causation, real-time conditions, or validated predictive risk.")
 with st.expander("Industry references"):
     st.markdown("""
