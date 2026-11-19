@@ -217,17 +217,26 @@ st.caption(
     "not change with the project filter."
 )
 
-critical_open = followup.loc[
+# Original labels are retained for transparency. The instructor advised
+# treating follow-ups without confirmed completion as completed for this exercise.
+# Do not interpret the "Open" source label as a verified unresolved hazard.
+recorded_completed = followup["COMPLETED_FOLLOWUPS"].sum()
+recorded_open = followup["OPEN_FOLLOWUPS"].sum()
+critical_open_label = followup.loc[
     followup["POTENTIAL_SEVERITY"].astype(str).str.lower() == "critical",
     "OPEN_FOLLOWUPS"
 ].sum()
-if critical_open > 0:
-    st.warning(
-        f"Management attention: {critical_open:,.0f} Critical-severity Good Catch "
-        "follow-ups remain open across all projects. Confirm ownership, "
-        "corrective-action status, and closure evidence. An open follow-up "
-        "does not necessarily mean the hazard remains uncontrolled."
-    )
+st.info(
+    f"**Data interpretation:** The synthetic source data labels "
+    f"{recorded_completed:,.0f} Good Catch follow-ups as Completed and "
+    f"{recorded_open:,.0f} as Open (including "
+    f"{critical_open_label:,.0f} Critical-severity records). "
+    "These are recorded labels, **not independently verified outstanding hazards**. "
+    "Instructor clarification recommends assuming follow-ups without "
+    "confirmed completion are completed for this exercise. "
+    "Before taking management action, validate the actual follow-up and "
+    "corrective-action status with the project team."
+)
 
 
 # New: active projects to prioritize for corrective action
@@ -283,8 +292,10 @@ st.markdown(
 
     **3. Good Catch Follow-up**
 
-    Monitor open follow-ups and improve closure processes
-    so that reported hazards receive timely attention.
+    Track documented follow-up status and improve closure records.
+    Because the instructor advised assuming unconfirmed follow-ups are
+    completed for this exercise, validate statuses before treating a
+    recorded Open label as an outstanding safety hazard.
 
     **4. Project-Specific Prevention**
 
